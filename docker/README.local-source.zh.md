@@ -47,7 +47,7 @@ user_default_llm:
 编辑：
 
 ```powershell
-cd D:\Projects\Progress\ragflow\docker
+cd D:\Projects\Work\ragflow\docker
 notepad .env
 ```
 
@@ -125,11 +125,12 @@ Invoke-RestMethod `
 从仓库根目录执行：
 
 ```powershell
-cd D:\Projects\Progress\ragflow
+cd D:\Projects\Work\ragflow
 
 docker buildx build `
   --load `
   --progress=plain `
+  --provenance=false `
   -t ragflow:local-source `
   --build-arg NEED_MIRROR=1 `
   --build-arg RAGFLOW_VERSION=local-source-20260618-default-only `
@@ -142,6 +143,7 @@ docker buildx build `
 - `--build-arg NEED_MIRROR=1`: 使用国内镜像源构建，网络更稳定。
 - `--build-arg RAGFLOW_VERSION=...`: 写入镜像内 `/ragflow/VERSION`，方便确认当前跑的是本地源码镜像。
 - `--load`: 把 buildx 构建结果加载到本机 Docker image 列表中，后续 `docker compose` 才能直接使用。
+- `--provenance=false`: 不生成 buildx attestation/provenance manifest，避免 Docker Desktop 在 `--load` 导入本地镜像时因为 manifest list unpack 触发 `parent snapshot ... does not exist`。
 
 构建完成后确认镜像存在：
 
@@ -154,7 +156,7 @@ docker images ragflow:local-source
 进入 Docker 目录：
 
 ```powershell
-cd D:\Projects\Progress\ragflow\docker
+cd D:\Projects\Work\ragflow\docker
 ```
 
 首次启动或完整启动：
@@ -211,7 +213,7 @@ http://127.0.0.1:8080/
 执行：
 
 ```powershell
-cd D:\Projects\Progress\ragflow\docker
+cd D:\Projects\Work\ragflow\docker
 
 docker compose -f docker-compose.yml --env-file .env up -d --force-recreate
 ```
@@ -229,7 +231,7 @@ docker compose -f docker-compose.yml --env-file .env up -d --no-deps --force-rec
 查看容器状态：
 
 ```powershell
-cd D:\Projects\Progress\ragflow\docker
+cd D:\Projects\Work\ragflow\docker
 docker compose -f docker-compose.yml --env-file .env ps
 ```
 
@@ -401,17 +403,18 @@ docker compose -f docker-compose.yml --env-file .env down
 前端代码已经被打进镜像里。改源码后需要：
 
 ```powershell
-cd D:\Projects\Progress\ragflow
+cd D:\Projects\Work\ragflow
 
 docker buildx build `
   --load `
   --progress=plain `
+  --provenance=false `
   -t ragflow:local-source `
   --build-arg NEED_MIRROR=1 `
   --build-arg RAGFLOW_VERSION=local-source-<日期或说明> `
   .
 
-cd D:\Projects\Progress\ragflow\docker
+cd D:\Projects\Work\ragflow\docker
 docker compose -f docker-compose.yml --env-file .env up -d --no-deps --force-recreate ragflow-cpu
 ```
 
@@ -441,3 +444,34 @@ docker compose -f docker-compose.yml --env-file .env up -d --force-recreate
 当前目标是：不让用户从页面右侧供应商列表手动添加模型，也不展示已添加模型列表，只让用户在 `Set default models` 中选择默认模型。
 
 模型的新增和更新由后端根据 `.env` 中的 OpenAI-compatible 配置自动完成。
+
+### 11.5 buildx 最后导入镜像时报 parent snapshot 不存在
+
+如果构建日志已经到：
+
+```text
+exporting to image
+naming to docker.io/library/ragflow:local-source done
+failed to prepare extraction snapshot ... parent snapshot ... does not exist
+```
+
+这通常不是 Dockerfile 编译失败，而是 Docker Desktop 本地 image/snapshot 存储在 `--load` 导入镜像时出现了不一致。先只删除这次半加载的目标镜像，不要删除数据卷：
+
+```powershell
+docker image rm ragflow:local-source
+docker system df
+```
+
+然后按本文档的构建命令重新 build，确认命令中带有：
+
+```powershell
+--provenance=false `
+```
+
+构建完成后验证镜像可运行：
+
+```powershell
+docker run --rm --entrypoint cat ragflow:local-source /ragflow/VERSION
+```
+
+如果 `docker system df` 本身仍然报 `snapshot ... does not exist`，先重启 Docker Desktop，再重复上面的删除目标镜像和重新构建步骤。不要使用 `docker compose down -v` 处理这个问题，`-v` 会删除 MySQL、Elasticsearch、MinIO 等数据卷。
