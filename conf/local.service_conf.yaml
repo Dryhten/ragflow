@@ -1,5 +1,0 @@
-user_default_llm:
-  name: 'Matrix'
-  factory: 'OpenAI-API-Compatible'
-  api_key: '你的key'
-  base_url: '你的模型地址'
