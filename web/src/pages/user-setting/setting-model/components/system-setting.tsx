@@ -1,3 +1,4 @@
+import LLMLabel from '@/components/llm-select/llm-label';
 import { ModelTreeSelect, ModelTypeMap } from '@/components/model-tree-select';
 import {
   Tooltip,
@@ -20,7 +21,7 @@ interface ModelFieldItemProps {
   value: string;
   tooltip?: string;
   isRequired?: boolean;
-  onChange: (id: string, value: string) => void;
+  onChange: (fieldId: string, value: string) => void;
 }
 
 function ModelFieldItem({
@@ -54,10 +55,11 @@ function ModelFieldItem({
         <ModelTreeSelect
           modelTypes={ModelTypeMap[id as keyof typeof ModelTypeMap] ?? ['chat']}
           value={value}
-          onChange={(val) => onChange(id, val)}
           placeholder={t('selectModelPlaceholder')}
           showSearch
-          allowClear={id !== 'llm_id'}
+          allowClear={false}
+          onChange={(value) => onChange(id, value)}
+          renderSelected={value ? () => <LLMLabel value={value} /> : undefined}
         />
       </div>
     </div>
@@ -69,23 +71,17 @@ function SystemSetting() {
   const defaultModelDictionary = useFetchDefaultModelDictionary();
   const { setDefaultModel } = useSetDefaultModel();
 
-  const handleFieldChange = useCallback(
-    async (field: string, value: string) => {
-      const modelType = FieldToModelType[field];
-      if (!modelType) return;
+  const handleModelChange = useCallback(
+    (fieldId: string, value: string) => {
+      const model = parseModelValue(value);
+      if (!model) return;
 
-      if (!value) {
-        await setDefaultModel({
-          model_provider: '',
-          model_instance: '',
-          model_name: '',
-          model_type: modelType,
-        });
-      } else {
-        const parsed = parseModelValue(value);
-        if (!parsed) return;
-        await setDefaultModel({ ...parsed, model_type: modelType });
-      }
+      setDefaultModel({
+        model_provider: model.model_provider,
+        model_instance: model.model_instance,
+        model_type: FieldToModelType[fieldId],
+        model_name: model.model_name,
+      });
     },
     [setDefaultModel],
   );
@@ -148,7 +144,7 @@ function SystemSetting() {
           <ModelFieldItem
             key={item.id}
             {...item}
-            onChange={handleFieldChange}
+            onChange={handleModelChange}
           />
         ))}
       </div>

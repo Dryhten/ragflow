@@ -70,12 +70,4 @@ module.exports = {
       },
     ],
   },
-  overrides: [
-    {
-      files: ['**/__tests__/**'],
-      rules: {
-        'check-file/folder-naming-convention': 'off',
-      },
-    },
-  ],
 };

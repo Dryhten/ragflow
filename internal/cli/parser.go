@@ -138,8 +138,6 @@ func (p *Parser) parseAdminCommand() (*Command, error) {
 		return p.parseAdminSaveCommand()
 	case TokenUse:
 		return p.parseAdminUseCommand()
-	case TokenPurge:
-		return p.parseAdminPurgeCommand()
 	default:
 		return nil, fmt.Errorf("unknown command: %s", p.curToken.Value)
 	}

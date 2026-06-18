@@ -51,6 +51,15 @@ def _decode_api_key_config(raw_api_key: str) -> tuple[str, bool | None, str | No
     return parsed.get("api_key", raw_api_key), is_tools, raw_api_key
 
 
+def normalize_model_type(model_type: str | enum.Enum) -> str:
+    model_type_value = model_type if isinstance(model_type, str) else model_type.value
+    if model_type_value == "asr":
+        return LLMType.SPEECH2TEXT.value
+    if model_type_value == "vision":
+        return LLMType.IMAGE2TEXT.value
+    return model_type_value
+
+
 def get_first_provider_model_name(tenant_id: str, provider_name: str, model_type: str | enum.Enum) -> str | None:
     model_type_val = model_type if isinstance(model_type, str) else model_type.value
     provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
@@ -136,7 +145,7 @@ def get_tenant_default_model_by_type(tenant_id: str, model_type: str|enum.Enum):
     exist, tenant = TenantService.get_by_id(tenant_id)
     if not exist:
         raise LookupError("Tenant not found")
-    model_type_val = model_type if isinstance(model_type, str) else model_type.value
+    model_type_val = normalize_model_type(model_type)
     model_name: str = ""
     match model_type_val:
         case LLMType.EMBEDDING.value:
@@ -180,7 +189,7 @@ def split_model_name(model_name: str):
 
 def get_model_config_from_provider_instance(tenant_id, model_type: str|enum.Enum, model_name: str):
     pure_model_name, instance_name, provider_name = split_model_name(model_name)
-    model_type_val = model_type if isinstance(model_type, str) else model_type.value
+    model_type_val = normalize_model_type(model_type)
     # Builtin embedding model
     compose_profiles = os.getenv("COMPOSE_PROFILES", "")
     is_tei_builtin_embedding = (

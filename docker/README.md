@@ -223,18 +223,14 @@ Before setting `DOC_ENGINE=oceanbase`, make sure the host OS allows the file des
     - `redirect_uri`: Required, URI to which the authorization server redirects during the authentication flow to return results. Must match the callback URI registered with the authentication server. Format: `https://your-app.com/v1/user/oauth/callback/<channel>`. For local configuration, you can directly use `http://127.0.0.1:80/v1/user/oauth/callback/<channel>`.
 
 - `user_default_llm`  
-  The default LLM to use for a new RAGFlow user. It is disabled by default. To enable this feature, uncomment the corresponding lines in **service_conf.yaml.template**.  
-  - `factory`: The LLM supplier. Available options:
-    - `"OpenAI"`
-    - `"DeepSeek"`
-    - `"Moonshot"`
-    - `"Tongyi-Qianwen"`
-    - `"VolcEngine"`
-    - `"ZHIPU-AI"`
-  - `api_key`: The API key for the specified LLM. You will need to apply for your model API key online.
+  The OpenAI-compatible model endpoint imported automatically when RAGFlow starts. RAGFlow fetches the model list from `base_url` and adds the returned models to the configured instance name, for example `Matrix`.
+  - `name`: The provider instance name shown in the model settings page.
+  - `factory`: The LLM supplier. Use `"OpenAI-API-Compatible"` for OpenAI-compatible endpoints.
+  - `api_key`: The API key for the specified endpoint.
+  - `base_url`: The OpenAI-compatible base URL. If it does not contain `/v1`, RAGFlow requests `<base_url>/v1/models`.
 
 > [!TIP]  
-> If you do not set the default LLM here, configure the default LLM on the **Settings** page in the RAGFlow UI.
+> Configure the actual default chat, embedding, rerank, and other models on the **Settings** page after the endpoint models have been imported.
 
 
 ## 📋 Setup Examples
