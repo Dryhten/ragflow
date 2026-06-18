@@ -5,6 +5,7 @@ from types import SimpleNamespace
 def test_bootstrap_matrix_endpoint_imports_all_remote_models(monkeypatch):
     from api.db.joint_services import default_model_bootstrap as module
 
+    module._SYNCED_TENANT_KEYS.clear()
     provider_inserts = []
     instance_creates = []
     model_inserts = []
@@ -78,16 +79,16 @@ def test_bootstrap_matrix_endpoint_imports_all_remote_models(monkeypatch):
     monkeypatch.setattr(module, "TenantModelService", ModelService)
     monkeypatch.setattr(module, "TenantService", TenantService)
     monkeypatch.setattr(
-        module.config_utils,
-        "get_base_config",
-        lambda key, default=None: {
+        module,
+        "config_utils",
+        SimpleNamespace(get_base_config=lambda key, default=None: {
             "name": "Matrix",
             "factory": "OpenAI-API-Compatible",
             "api_key": "sk-from-config",
             "base_url": "https://models.example/v1",
         }
         if key == "user_default_llm"
-        else default,
+        else default),
     )
     monkeypatch.setattr(
         module.requests,
@@ -137,4 +138,82 @@ def test_bootstrap_matrix_endpoint_imports_all_remote_models(monkeypatch):
             "extra": json.dumps({"max_tokens": 8192}, ensure_ascii=False),
         },
     ]
+    assert tenant_updates == [
+        (
+            "tenant-1",
+            {
+                "llm_id": "matrix-chat@Matrix@OpenAI-API-Compatible",
+                "embd_id": "matrix-embedding@Matrix@OpenAI-API-Compatible",
+            },
+        )
+    ]
+
+
+def test_bootstrap_keeps_existing_tenant_default_models(monkeypatch):
+    from api.db.joint_services import default_model_bootstrap as module
+
+    module._SYNCED_TENANT_KEYS.clear()
+    tenant_updates = []
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": [{"id": "matrix-chat"}]}
+
+    class ProviderService:
+        @staticmethod
+        def get_by_tenant_id_and_provider_name(_tenant_id, provider_name):
+            return SimpleNamespace(id="provider-1", provider_name=provider_name)
+
+    class InstanceService:
+        @staticmethod
+        def get_by_provider_id_and_instance_name(_provider_id, instance_name):
+            return SimpleNamespace(id="instance-1", instance_name=instance_name)
+
+        @staticmethod
+        def update_by_id(_instance_id, _payload):
+            return True
+
+    class ModelService:
+        @staticmethod
+        def get_by_provider_id_and_instance_id_and_model_type_and_model_name(
+            _provider_id, _instance_id, _model_type, _model_name
+        ):
+            return None
+
+        @staticmethod
+        def insert(**_kwargs):
+            return True
+
+    class TenantService:
+        @staticmethod
+        def get_by_id(_tenant_id):
+            return True, SimpleNamespace(llm_id="custom-chat@Other@Provider")
+
+        @staticmethod
+        def update_by_id(tenant_id, payload):
+            tenant_updates.append((tenant_id, payload))
+
+    monkeypatch.setattr(module, "TenantModelProviderService", ProviderService)
+    monkeypatch.setattr(module, "TenantModelInstanceService", InstanceService)
+    monkeypatch.setattr(module, "TenantModelService", ModelService)
+    monkeypatch.setattr(module, "TenantService", TenantService)
+    monkeypatch.setattr(
+        module,
+        "config_utils",
+        SimpleNamespace(get_base_config=lambda key, default=None: {
+            "name": "Matrix",
+            "factory": "OpenAI-API-Compatible",
+            "api_key": "sk-from-config",
+            "base_url": "https://models.example/v1",
+        }
+        if key == "user_default_llm"
+        else default),
+    )
+    monkeypatch.setattr(module.requests, "get", lambda *_args, **_kwargs: Response())
+
+    module.ensure_configured_default_models_for_tenant("tenant-1")
+
     assert tenant_updates == []

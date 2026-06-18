@@ -247,6 +247,18 @@ def _load_user_app(monkeypatch):
     tenant_llm_service_mod.TenantLLMService = _StubTenantLLMService
     monkeypatch.setitem(sys.modules, "api.db.services.tenant_llm_service", tenant_llm_service_mod)
 
+    joint_services_pkg = ModuleType("api.db.joint_services")
+    joint_services_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "api.db.joint_services", joint_services_pkg)
+
+    default_model_bootstrap_mod = ModuleType("api.db.joint_services.default_model_bootstrap")
+    default_model_bootstrap_mod.ensure_configured_default_models_for_tenant = lambda _tenant_id: 0
+    monkeypatch.setitem(
+        sys.modules,
+        "api.db.joint_services.default_model_bootstrap",
+        default_model_bootstrap_mod,
+    )
+
     user_service_mod = ModuleType("api.db.services.user_service")
 
     class _StubTenantService:
@@ -845,6 +857,69 @@ def test_registration_helpers_and_register_route_matrix_unit(monkeypatch):
     assert res["code"] == module.RetCode.EXCEPTION_ERROR, res
     assert "Same email: neo@example.com exists!" in res["message"], res
     assert rollback_calls == ["new-user-id"], rollback_calls
+
+
+@pytest.mark.p2
+def test_user_register_bootstraps_configured_default_models_unit(monkeypatch):
+    module = _load_user_app(monkeypatch)
+
+    saved_users = []
+    inserted_tenants = []
+    inserted_user_tenants = []
+    inserted_files = []
+    bootstrap_calls = []
+
+    monkeypatch.setattr(
+        module.UserService,
+        "save",
+        lambda **payload: saved_users.append(payload) or True,
+    )
+    monkeypatch.setattr(
+        module.TenantService,
+        "insert",
+        lambda **payload: inserted_tenants.append(payload) or True,
+    )
+    monkeypatch.setattr(
+        module.UserTenantService,
+        "insert",
+        lambda **payload: inserted_user_tenants.append(payload) or True,
+    )
+    monkeypatch.setattr(
+        module.FileService,
+        "insert",
+        lambda payload: inserted_files.append(payload) or True,
+    )
+    monkeypatch.setattr(
+        module.UserService,
+        "query",
+        lambda **kwargs: [_DummyUser(kwargs.get("email", "new-user"), kwargs.get("email", "new@example.com"))],
+    )
+    monkeypatch.setattr(
+        module,
+        "ensure_configured_default_models_for_tenant",
+        lambda tenant_id: bootstrap_calls.append(tenant_id) or 2,
+        raising=False,
+    )
+
+    res = module.user_register(
+        "new-user",
+        {
+            "nickname": "new",
+            "email": "new@example.com",
+            "password": "pw",
+            "access_token": "tk",
+            "login_channel": "password",
+            "last_login_time": "2024-01-01 00:00:00",
+            "is_superuser": False,
+        },
+    )
+
+    assert res[0].email == "new@example.com"
+    assert saved_users[0]["id"] == "new-user"
+    assert inserted_tenants[0]["id"] == "new-user"
+    assert inserted_user_tenants[0]["tenant_id"] == "new-user"
+    assert inserted_files[0]["tenant_id"] == "new-user"
+    assert bootstrap_calls == ["new-user"]
 
 
 @pytest.mark.p2

@@ -189,10 +189,8 @@ COPY docs docs
 RUN --mount=type=cache,id=ragflow_npm,target=/root/.npm,sharing=locked \
     cd web && NODE_OPTIONS="--max-old-space-size=8192" VITE_BUILD_SOURCEMAP=false VITE_MINIFY=esbuild npm run build
 
-COPY .git /ragflow/.git
-
-RUN version_info=$(git describe --tags --match=v* --first-parent --always); \
-    version_info="$version_info"; \
+ARG RAGFLOW_VERSION=local-source
+RUN version_info="${RAGFLOW_VERSION}"; \
     echo "RAGFlow version: $version_info"; \
     echo $version_info > /ragflow/VERSION
 

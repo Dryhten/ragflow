@@ -241,6 +241,3 @@ bin/*
 # Local agent tooling state (per-developer; not for commit)
 .omc/
 .marscode/
-
-# Local RAGFlow service configuration override; may contain API keys.
-conf/local.service_conf.yaml

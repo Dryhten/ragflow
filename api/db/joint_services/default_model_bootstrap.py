@@ -17,7 +17,6 @@ import enum
 import importlib
 import json
 import logging
-from types import SimpleNamespace
 from typing import Any
 
 import requests
@@ -29,10 +28,27 @@ DEFAULT_PROVIDER_NAME = "OpenAI-API-Compatible"
 DEFAULT_INSTANCE_NAME = "Matrix"
 DEFAULT_MAX_TOKENS = 8192
 MODEL_LIST_TIMEOUT_SECONDS = 15
+DEFAULT_MODEL_FIELDS = {
+    LLMType.CHAT.value: "llm_id",
+    LLMType.EMBEDDING.value: "embd_id",
+    LLMType.SPEECH2TEXT.value: "asr_id",
+    "asr": "asr_id",
+    LLMType.IMAGE2TEXT.value: "img2txt_id",
+    "vision": "img2txt_id",
+    LLMType.RERANK.value: "rerank_id",
+    LLMType.TTS.value: "tts_id",
+}
+DEFAULT_MODEL_SETTING_FIELDS = {
+    "llm_id": "CHAT_MDL",
+    "embd_id": "EMBEDDING_MDL",
+    "asr_id": "ASR_MDL",
+    "img2txt_id": "IMAGE2TEXT_MDL",
+    "rerank_id": "RERANK_MDL",
+}
 
 _SYNCED_TENANT_KEYS: set[tuple[str, str]] = set()
 
-config_utils = SimpleNamespace(get_base_config=lambda key, default=None: default)
+config_utils = None
 TenantModelInstanceService = None
 TenantModelProviderService = None
 TenantModelService = None
@@ -51,7 +67,7 @@ def _load_global(name: str, module_path: str, attr_name: str):
 
 
 def _get_config_utils():
-    if hasattr(config_utils, "get_base_config"):
+    if config_utils is not None and hasattr(config_utils, "get_base_config"):
         return config_utils
     module = importlib.import_module("common.config_utils")
     globals()["config_utils"] = module
@@ -338,6 +354,63 @@ def _config_key(endpoint_config: dict[str, Any]) -> str:
     )
 
 
+def _build_model_id(model_name: str, instance_name: str, provider_name: str) -> str:
+    return f"{model_name}@{instance_name}@{provider_name}"
+
+
+def _get_initial_default_model_id(field_name: str) -> str:
+    setting_field_name = DEFAULT_MODEL_SETTING_FIELDS.get(field_name)
+    if not setting_field_name:
+        return ""
+    try:
+        settings_module = importlib.import_module("common.settings")
+        return getattr(settings_module, setting_field_name, "") or ""
+    except Exception:
+        return ""
+
+
+def _should_replace_tenant_default(tenant, field_name: str) -> bool:
+    current_model_id = getattr(tenant, field_name, None)
+    if not current_model_id:
+        return True
+    return current_model_id == _get_initial_default_model_id(field_name)
+
+
+def _ensure_tenant_default_models(
+    tenant_id: str,
+    endpoint_config: dict[str, Any],
+    instance_name: str,
+    remote_models: list[dict[str, Any]],
+) -> None:
+    service = _tenant_service()
+    exists, tenant = service.get_by_id(tenant_id)
+    if not exists or not tenant:
+        return
+
+    updates: dict[str, str] = {}
+    for remote_model in remote_models:
+        model_name = remote_model.get("name")
+        if not model_name:
+            continue
+
+        model_id = _build_model_id(
+            model_name,
+            instance_name,
+            endpoint_config["provider_name"],
+        )
+        model_types = remote_model.get("model_types") or [LLMType.CHAT.value]
+        for model_type in model_types:
+            field_name = DEFAULT_MODEL_FIELDS.get(model_type)
+            if not field_name or field_name in updates:
+                continue
+            if not _should_replace_tenant_default(tenant, field_name):
+                continue
+            updates[field_name] = model_id
+
+    if updates:
+        service.update_by_id(tenant_id, updates)
+
+
 def ensure_configured_default_models_for_tenant(tenant_id: str) -> int:
     endpoint_config = _get_endpoint_config()
     if not endpoint_config:
@@ -398,6 +471,12 @@ def ensure_configured_default_models_for_tenant(tenant_id: str) -> int:
             ):
                 created_models += 1
 
+    _ensure_tenant_default_models(
+        tenant_id,
+        endpoint_config,
+        getattr(instance, "instance_name", endpoint_config["instance_name"]),
+        remote_models,
+    )
     _SYNCED_TENANT_KEYS.add(sync_key)
     return created_models
 

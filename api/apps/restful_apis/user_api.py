@@ -27,6 +27,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from api.apps.auth import get_auth_client
 from api.db import FileType, UserTenantRole
+from api.db.joint_services.default_model_bootstrap import ensure_configured_default_models_for_tenant
 from api.db.services.file_service import FileService
 from api.db.services.user_service import TenantService, UserService, UserTenantService
 from common.time_utils import current_timestamp, datetime_format, get_format_time
@@ -457,6 +458,10 @@ def user_register(user_id, user):
     UserTenantService.insert(**usr_tenant)
     # TenantLLMService.insert_many(tenant_llm)
     FileService.insert(file)
+    try:
+        ensure_configured_default_models_for_tenant(user_id)
+    except Exception:
+        logging.exception("Failed to bootstrap configured default models for tenant %s", user_id)
     return UserService.query(email=user["email"])
 
 
@@ -854,5 +859,4 @@ async def forget_reset_password():
 
     msg = "Password reset successful. Logged in."
     return await construct_response(data=user.to_safe_dict(for_self=True), auth=user.get_id(), message=msg)
-
 
