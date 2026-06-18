@@ -21,6 +21,7 @@ import asyncio
 from common.constants import LLMType, ActiveStatusEnum
 from common.misc_utils import get_uuid
 from common.settings import FACTORY_LLM_INFOS
+from api.db.joint_services.default_model_bootstrap import ensure_configured_default_models_for_tenant
 from api.db.joint_services.tenant_model_service import get_model_config_from_provider_instance, delete_models_by_instance_ids, delete_instances_by_provider_ids
 from api.db.services.tenant_model_provider_service import TenantModelProviderService
 from api.db.services.tenant_model_instance_service import TenantModelInstanceService
@@ -69,6 +70,9 @@ def list_providers(tenant_id: str, all_available: bool = False):
     """
     if not FACTORY_LLM_INFOS:
         return False, []
+
+    if tenant_id and not all_available:
+        ensure_configured_default_models_for_tenant(tenant_id)
 
     factory_rank_mapping = {factory["name"]: -_to_int(factory.get("rank", "500")) for factory in FACTORY_LLM_INFOS}
     factory_info_map = {f["name"]: f for f in FACTORY_LLM_INFOS}
@@ -343,6 +347,9 @@ def list_provider_instances(tenant_id: str, provider_name: str):
     :param provider_name: provider/factory name
     :return: (success, result_or_error_message)
     """
+    if tenant_id:
+        ensure_configured_default_models_for_tenant(tenant_id)
+
     provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_name}'"

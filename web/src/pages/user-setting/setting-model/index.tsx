@@ -14,7 +14,6 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 import { isLocalLlmFactory } from '../utils';
 import SystemSetting from './components/system-setting';
-import { AvailableModels } from './components/un-add-model';
 import { UsedModel } from './components/used-model';
 import { useSubmitBedrock } from './hooks';
 import BedrockModal from './modal/bedrock-modal';
@@ -344,15 +343,12 @@ const ModelProviders = () => {
   return (
     <div className="flex w-full border-[0.5px] border-border-button rounded-lg relative ">
       <Spotlight />
-      <section className="flex flex-col gap-4 w-3/5 px-5 border-r-[0.5px] border-border-button overflow-auto scrollbar-auto">
+      <section className="flex flex-col gap-4 w-full px-5 overflow-auto scrollbar-auto">
         <SystemSetting />
         <UsedModel
           handleAddModel={handleAddModel}
           onEditInstance={handleEditInstance}
         />
-      </section>
-      <section className="flex flex-col w-2/5 overflow-auto scrollbar-auto">
-        <AvailableModels handleAddModel={handleAddModel} />
       </section>
 
       {/* Unified ProviderModal (replaces 9 independent modals) */}

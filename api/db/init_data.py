@@ -35,6 +35,10 @@ from api.db.services.user_service import TenantService, UserTenantService
 from api.db.services.system_settings_service import SystemSettingsService
 from api.db.template_utils import normalize_canvas_template_categories
 from api.db.joint_services.memory_message_service import init_message_id_sequence, init_memory_size_cache, fix_missing_tokenized_memory
+from api.db.joint_services.default_model_bootstrap import (
+    ensure_configured_default_models_for_all_tenants,
+    ensure_configured_default_models_for_tenant,
+)
 from api.db.joint_services.tenant_model_service import get_tenant_default_model_by_type
 from common.constants import LLMType
 from common.file_utils import get_project_base_directory
@@ -88,6 +92,7 @@ def init_superuser(nickname=DEFAULT_SUPERUSER_NICKNAME, email=DEFAULT_SUPERUSER_
     TenantService.insert(**tenant)
     UserTenantService.insert(**usr_tenant)
     TenantLLMService.insert_many(tenant_llm)
+    ensure_configured_default_models_for_tenant(tenant["id"])
     logging.info(
         f"Super user initialized. email: {email},A default password has been set; changing the password after login is strongly recommended.")
 
@@ -191,6 +196,7 @@ def init_web_data():
     init_table()
 
     # init_llm_factory()
+    ensure_configured_default_models_for_all_tenants()
     update_document_number_in_init()
     # if not UserService.get_all().count():
     #    init_superuser()

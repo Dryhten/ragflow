@@ -17,6 +17,7 @@ import os
 import logging
 
 from api.db.joint_services.tenant_model_service import ensure_mineru_from_env, ensure_paddleocr_from_env, ensure_opendataloader_from_env
+from api.db.joint_services.default_model_bootstrap import ensure_configured_default_models_for_tenant
 from common.constants import ActiveStatusEnum, LLMType
 from common.settings import FACTORY_LLM_INFOS
 from api.db.services.tenant_model_provider_service import TenantModelProviderService
@@ -241,6 +242,7 @@ def list_tenant_default_models(tenant_id: str):
     :param tenant_id: tenant ID
     :return: (success, result_or_error_message)
     """
+    ensure_configured_default_models_for_tenant(tenant_id)
     e, tenant = TenantService.get_by_id(tenant_id)
     if not e:
         return False, "Tenant not found"
@@ -305,6 +307,7 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
     :param model_type_filter: model type filter (chat, embedding, rerank, asr, vision, tts, ocr)
     :return: (success, result_or_error_message)
     """
+    ensure_configured_default_models_for_tenant(tenant_id)
     e, tenant = TenantService.get_by_id(tenant_id)
     if not e:
         return False, "Tenant not found"
