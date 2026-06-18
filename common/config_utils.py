@@ -85,6 +85,9 @@ def show_configs():
             if "access_key" in v:
                 v = copy.deepcopy(v)
                 v["access_key"] = "*" * 8
+            if "api_key" in v:
+                v = copy.deepcopy(v)
+                v["api_key"] = "*" * 8
             if "secret_key" in v:
                 v = copy.deepcopy(v)
                 v["secret_key"] = "*" * 8
