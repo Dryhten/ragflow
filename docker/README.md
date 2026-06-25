@@ -4,6 +4,7 @@
 <summary></b>📗 Table of Contents</b></summary>
 
 - 🐳 [Docker Compose](#-docker-compose)
+- 🛠️ [Local source image build and deployment](./README.local-source.zh.md)
 - 🐬 [Docker environment variables](#-docker-environment-variables)
 - 🐋 [Service configuration](#-service-configuration)
 - 📋 [Setup Examples](#-setup-examples)
@@ -19,6 +20,8 @@
 
 > [!CAUTION]
 > We do not actively maintain **docker-compose-CN-oc9.yml**, **docker-compose-macos.yml**, so use them at your own risk. However, you are welcome to file a pull request to improve any of them.
+
+For building and running a Docker image from the current local source code, see [本地源码 Docker 构建与部署运行](./README.local-source.zh.md).
 
 ## 🐬 Docker environment variables
 
